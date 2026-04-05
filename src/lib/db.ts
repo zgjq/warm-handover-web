@@ -4,11 +4,11 @@ import path from 'path';
 const DB_PATH = path.join(process.cwd(), 'data', 'handover.db');
 
 let db: Database.Database | null = null;
-let dbError: Error | null = null;
+let dbInitError: Error | null = null;
 
 function tryInitDb(): Database.Database | null {
   if (db) return db;
-  if (dbError) return null;
+  if (dbInitError) return null;
   try {
     const fs = require('fs');
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -130,7 +130,7 @@ function tryInitDb(): Database.Database | null {
 
     return db;
   } catch (e: any) {
-    dbError = e;
+    dbInitError = e;
     console.warn('[DB] SQLite unavailable:', e.message);
     return null;
   }

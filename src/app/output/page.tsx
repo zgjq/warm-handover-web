@@ -3,10 +3,49 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getQuestionsForRole } from '@/lib/questions';
+import { getTacitKnowledgeQuestions, generateTacitKnowledgeSection } from '@/lib/tacit-knowledge';
 import { DataService } from '@/lib/data-service';
 import JSZip from 'jszip';
 import { Markdown } from '@/components/Markdown';
 import { useTheme } from '@/context/ThemeContext';
+
+function generateDocuments(data: any) {
+  const cats = getQuestionsForRole(data.role || 'backend');
+  const result: Record<string, string> = {};
+  const dateStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+
+  for (const cat of cats) {
+    let content = `# ${data.projectName || '项目'} 交接 — ${cat.file.replace('.md', '')}\n\n`;
+    content += `> 访谈日期: ${dateStr}\n`;
+    content += `> 离职人: ${data.personName}\n`;
+    content += `> 接手人: ${data.successorName || '待确定'}\n`;
+    if (data.departureDate) content += `> 离职日期: ${data.departureDate}\n`;
+    content += `\n---\n\n`;
+
+    let hasContent = false;
+    for (const q of cat.questions) {
+      const answer = data.answers[`${cat.file}::${q.key}`] || '';
+      if (answer.trim()) {
+        content += `## ${q.label}\n\n${answer}\n\n`;
+        hasContent = true;
+      }
+    }
+
+    // Add tacit knowledge section to relevant files
+    if (cat.file === 'LESSONS.md' || cat.file === 'PEOPLE.md') {
+      const tacitSection = generateTacitKnowledgeSection(data.answers);
+      if (tacitSection) {
+        content += `\n---\n\n${tacitSection}`;
+        hasContent = true;
+      }
+    }
+
+    if (!hasContent) content += '_（此部分暂无记录）_\n';
+    result[cat.file] = content;
+  }
+
+  return result;
+}
 
 function OutputContent() {
   const router = useRouter();
@@ -25,67 +64,14 @@ function OutputContent() {
     DataService.get(Number(id)).then(data => {
       if (!data) { router.push('/new'); return; }
       setHandover(data);
-
-      const cats = getQuestionsForRole(data.role || 'backend');
-      const result: Record<string, string> = {};
-      const dateStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-
-      for (const cat of cats) {
-        let content = `# ${data.projectName || '项目'} 交接 — ${cat.file.replace('.md', '')}\n\n`;
-        content += `> 访谈日期: ${dateStr}\n`;
-        content += `> 离职人: ${data.personName}\n`;
-        content += `> 接手人: ${data.successorName || '待确定'}\n`;
-        if (data.departureDate) content += `> 离职日期: ${data.departureDate}\n`;
-        content += `\n---\n\n`;
-
-        let hasContent = false;
-        for (const q of cat.questions) {
-          const answer = data.answers[`${cat.file}::${q.key}`] || '';
-          if (answer.trim()) {
-            content += `## ${q.label}\n\n${answer}\n\n`;
-            hasContent = true;
-          }
-        }
-
-        if (!hasContent) content += '_（此部分暂无记录）_\n';
-        result[cat.file] = content;
-      }
-
-      setOutput(result);
+      setOutput(generateDocuments(data));
       setLoading(false);
     }).catch(() => {
-      // Fallback to LocalStorage
       const raw = localStorage.getItem(`handover_${id}`);
       if (!raw) { router.push('/new'); return; }
       const h = JSON.parse(raw);
       setHandover(h);
-
-      const cats = getQuestionsForRole(h.role || 'backend');
-      const result: Record<string, string> = {};
-      const dateStr = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-
-      for (const cat of cats) {
-        let content = `# ${h.projectName || '项目'} 交接 — ${cat.file.replace('.md', '')}\n\n`;
-        content += `> 访谈日期: ${dateStr}\n`;
-        content += `> 离职人: ${h.personName}\n`;
-        content += `> 接手人: ${h.successorName || '待确定'}\n`;
-        if (h.departureDate) content += `> 离职日期: ${h.departureDate}\n`;
-        content += `\n---\n\n`;
-
-        let hasContent = false;
-        for (const q of cat.questions) {
-          const answer = (h.answers || {})[`${cat.file}::${q.key}`] || '';
-          if (answer.trim()) {
-            content += `## ${q.label}\n\n${answer}\n\n`;
-            hasContent = true;
-          }
-        }
-
-        if (!hasContent) content += '_（此部分暂无记录）_\n';
-        result[cat.file] = content;
-      }
-
-      setOutput(result);
+      setOutput(generateDocuments(h));
       setLoading(false);
     });
   }, [id]);
@@ -132,15 +118,11 @@ function OutputContent() {
     setDownloading(false);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-pulse text-4xl mb-3">📄</div>
-        <p className="text-gray-500">生成文档中...</p>
+        <p className="text-gray-500 dark:text-stone-400">生成文档中...</p>
       </div>
     </div>;
   }
@@ -170,12 +152,6 @@ function OutputContent() {
             {downloading ? '⏳ 打包中...' : '📦 下载全部 (ZIP)'}
           </button>
           <button
-            onClick={handlePrint}
-            className="px-6 py-3 bg-white dark:bg-stone-800 text-gray-700 dark:text-stone-300 border border-gray-200 dark:border-stone-700 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-stone-700 transition-colors flex items-center gap-2"
-          >
-            🖨️ 打印 / PDF
-          </button>
-          <button
             onClick={() => router.push(`/handover/${id}`)}
             className="px-6 py-3 bg-white dark:bg-stone-800 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 rounded-xl font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
           >
@@ -186,13 +162,6 @@ function OutputContent() {
             className="px-6 py-3 bg-white dark:bg-stone-800 text-gray-600 dark:text-stone-300 border border-gray-200 dark:border-stone-700 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-stone-700 transition-colors"
           >
             返回列表
-          </button>
-          <button
-            onClick={toggle}
-            className="p-3 bg-white dark:bg-stone-800 rounded-xl shadow-md border border-gray-200 dark:border-stone-700 hover:scale-110 transition-all"
-            aria-label="切换主题"
-          >
-            {theme === 'dark' ? '☀️' : '🌙'}
           </button>
         </div>
 
@@ -207,7 +176,7 @@ function OutputContent() {
                   : 'bg-white dark:bg-stone-800 text-gray-600 dark:text-stone-300 hover:bg-gray-50 dark:hover:bg-stone-700'
               }`}
             >
-              {f.replace('.md', '')}
+              {f}
             </button>
           ))}
         </div>
@@ -227,7 +196,7 @@ function OutputContent() {
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="text-sm text-orange-500 hover:text-orange-600 dark:text-orange-400"
+              className="text-sm text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300"
             >
               下载此文件 ↓
             </button>
