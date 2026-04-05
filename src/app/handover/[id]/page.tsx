@@ -45,7 +45,7 @@ export default function HandoverDetailPage() {
       try {
         const [hData, commentsData, scoreData] = await Promise.all([
           fetch(`/api/handover?id=${id}`).then(r => {
-            if (!r.ok) throw new Error('交接记录不存在');
+            if (!r.ok) throw new Error('API unavailable');
             return r.json();
           }),
           fetch(`/api/comments?handoverId=${id}`).then(r => r.json()).catch(() => []),
@@ -56,20 +56,36 @@ export default function HandoverDetailPage() {
         if (hData.score) setScore(hData.score);
         if (scoreData) setScore(scoreData);
         setComments(commentsData);
-
-        const saved = localStorage.getItem(`checklist_${id}`);
-        if (saved) setChecklist(JSON.parse(saved));
-
-        const savedName = localStorage.getItem('wh_user_name');
-        if (savedName) setUserName(savedName);
-        const savedRole = localStorage.getItem('wh_user_role');
-        if (savedRole) setUserRole(savedRole as any);
-      } catch (e: any) {
-        console.error('[Handover] Load failed:', e);
-        setError(e.message || '加载失败');
+      } catch {
+        // Fallback to LocalStorage
+        const raw = localStorage.getItem(`handover_${id}`);
+        if (raw) {
+          const h = JSON.parse(raw);
+          setHandover({
+            ...h,
+            person_name: h.personName,
+            successor_name: h.successorName,
+            project_name: h.projectName,
+            departure_date: h.departureDate,
+            answers: Object.entries(h.answers || {}).map(([key, val]) => {
+              const [category, question_key, ...rest] = key.split('::');
+              return { category, question_key, question_label: rest.length > 0 ? rest.join('::') : '', answer: val as string };
+            }),
+          });
+        } else {
+          setError('交接记录不存在');
+        }
       } finally {
         setLoading(false);
       }
+
+      const saved = localStorage.getItem(`checklist_${id}`);
+      if (saved) setChecklist(JSON.parse(saved));
+
+      const savedName = localStorage.getItem('wh_user_name');
+      if (savedName) setUserName(savedName);
+      const savedRole = localStorage.getItem('wh_user_role');
+      if (savedRole) setUserRole(savedRole as any);
     };
 
     load();

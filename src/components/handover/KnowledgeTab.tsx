@@ -16,15 +16,34 @@ export default function KnowledgeTab({ handoverId, handover }: KnowledgeTabProps
   const handleSearch = async () => {
     if (!query.trim()) return;
     setLoading(true);
+    setSearched(true);
+
+    // First try API (FTS5 search)
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handoverId, query: query.trim() }),
       });
-      setResults(await res.json());
-      setSearched(true);
-    } catch { setResults([]); }
+      if (res.ok) {
+        const data = await res.json();
+        setResults(data);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // API unavailable, fallback to client-side search
+    }
+
+    // Client-side fallback: search through handover answers
+    const answers = handover?.answers || [];
+    const q = query.toLowerCase();
+    const matched = answers.filter((a: any) =>
+      (a.answer || '').toLowerCase().includes(q) ||
+      (a.question_label || '').toLowerCase().includes(q) ||
+      (a.category || '').toLowerCase().includes(q)
+    );
+    setResults(matched);
     setLoading(false);
   };
 
