@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getQuestionsForRole } from '@/lib/questions';
 import JSZip from 'jszip';
+import { Markdown } from '@/components/Markdown';
 
 function OutputContent() {
   const router = useRouter();
@@ -13,6 +14,7 @@ function OutputContent() {
   const [handover, setHandover] = useState<any>(null);
   const [output, setOutput] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState(0);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -29,8 +31,9 @@ function OutputContent() {
       let content = `# ${h.projectName || '项目'} 交接 — ${cat.file.replace('.md', '')}\n\n`;
       content += `> 访谈日期: ${dateStr}\n`;
       content += `> 离职人: ${h.personName}\n`;
-      content += `> 接手人: ${h.successorName || '待确定'}\n\n`;
-      content += `---\n\n`;
+      content += `> 接手人: ${h.successorName || '待确定'}\n`;
+      if (h.departureDate) content += `> 离职日期: ${h.departureDate}\n`;
+      content += `\n---\n\n`;
 
       let hasContent = false;
       for (const q of cat.questions) {
@@ -46,10 +49,10 @@ function OutputContent() {
     }
 
     setOutput(result);
-    setActiveTab(0);
   }, [id]);
 
   const handleDownload = async () => {
+    setDownloading(true);
     const zip = new JSZip();
     const folder = zip.folder(`handover-${handover?.personName}-${handover?.projectName}`);
     
@@ -87,25 +90,20 @@ function OutputContent() {
     a.download = `warm-handover-${handover?.personName}-${handover?.projectName}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadSingle = (filename: string) => {
-    const content = output[filename];
-    if (!content) return;
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    setDownloading(false);
   };
 
   if (!handover) {
-    return <div className="min-h-screen flex items-center justify-center">加载中...</div>;
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-pulse text-4xl mb-3">📄</div>
+        <p className="text-gray-500">生成文档中...</p>
+      </div>
+    </div>;
   }
 
   const filenames = Object.keys(output);
+  const answeredCount = Object.values(handover.answers || {}).filter((a: any) => a && a.trim()).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
@@ -113,20 +111,24 @@ function OutputContent() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">📄 交接文档已生成</h1>
           <p className="text-gray-500">{handover.personName} → {handover.successorName || '待确定'} · {handover.projectName}</p>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+            ✅ 已回答 {answeredCount} 个问题
+          </div>
         </div>
 
         <div className="flex gap-3 mb-6 justify-center flex-wrap">
           <button
             onClick={handleDownload}
-            className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors shadow-md"
+            disabled={downloading}
+            className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors shadow-md disabled:opacity-50 flex items-center gap-2"
           >
-            📦 下载全部 (ZIP)
+            {downloading ? '⏳ 打包中...' : '📦 下载全部 (ZIP)'}
           </button>
           <button
-            onClick={() => router.push(`/timeline?id=${id}`)}
+            onClick={() => router.push(`/handover/${id}`)}
             className="px-6 py-3 bg-white text-orange-600 border border-orange-200 rounded-xl font-medium hover:bg-orange-50 transition-colors"
           >
-            📅 查看时间线
+            📋 交接详情
           </button>
           <button
             onClick={() => router.push('/list')}
@@ -156,16 +158,24 @@ function OutputContent() {
           <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 bg-gray-50">
             <span className="text-sm text-gray-500">{filenames[activeTab]}</span>
             <button
-              onClick={() => handleDownloadSingle(filenames[activeTab])}
+              onClick={() => {
+                const content = output[filenames[activeTab]];
+                if (!content) return;
+                const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filenames[activeTab];
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
               className="text-sm text-orange-500 hover:text-orange-600"
             >
               下载此文件 ↓
             </button>
           </div>
           <div className="p-6">
-            <pre className="whitespace-pre-wrap font-sans text-gray-700 text-sm leading-relaxed">
-              {output[filenames[activeTab]]}
-            </pre>
+            <Markdown content={output[filenames[activeTab]]} />
           </div>
         </div>
 
