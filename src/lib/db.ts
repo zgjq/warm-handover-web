@@ -159,7 +159,7 @@ export function getHandover(id: number) {
 
 export function listHandovers() {
   const db = getDb();
-  return db.prepare('SELECT h.*, COALESCE(s.total_score, 0) as score, COALESCE(s.risk_level, "low") as risk_level FROM handovers h LEFT JOIN scores s ON h.id = s.handover_id ORDER BY h.updated_at DESC').all() as any[];
+  return db.prepare("SELECT h.*, COALESCE(s.total_score, 0) as score, COALESCE(s.risk_level, 'low') as risk_level FROM handovers h LEFT JOIN scores s ON h.id = s.handover_id ORDER BY h.updated_at DESC").all() as any[];
 }
 
 export function updateHandover(id: number, data: Record<string, any>) {
@@ -188,7 +188,7 @@ export function getAnswers(handoverId: number) {
 
 export function getAnswerCount(handoverId: number) {
   const db = getDb();
-  return db.prepare('SELECT COUNT(*) as total, COUNT(CASE WHEN answer IS NOT NULL AND answer != "" THEN 1 END) as answered FROM answers WHERE handover_id = ?').get(handoverId) as any;
+  return db.prepare("SELECT COUNT(*) as total, COUNT(CASE WHEN answer IS NOT NULL AND answer != '' THEN 1 END) as answered FROM answers WHERE handover_id = ?").get(handoverId) as any;
 }
 
 // ── Comments ──
