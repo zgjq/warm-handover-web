@@ -2,11 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { DataService } from '@/lib/data-service';
+import { useTheme } from '@/context/ThemeContext';
 
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
+  const { theme, toggle } = useTheme();
 
   const [handover, setHandover] = useState<any>(null);
   const [integrations, setIntegrations] = useState<any>({});
@@ -15,25 +18,31 @@ function SettingsContent() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/handover?id=${id}`)
-      .then(r => r.json())
-      .then(data => setHandover(data));
+    DataService.get(Number(id))
+      .then(data => setHandover(data))
+      .catch(() => {});
     fetch(`/api/integrations?handoverId=${id}`)
       .then(r => r.json())
-      .then(data => setIntegrations(data || {}));
+      .then(data => setIntegrations(data || {}))
+      .catch(() => {});
   }, [id]);
 
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    await fetch('/api/integrations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handoverId: Number(id), ...integrations }),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await fetch('/api/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handoverId: Number(id), ...integrations }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      console.error('[Settings] Save failed:', e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const testWebhook = async (url: string, name: string) => {
@@ -44,7 +53,7 @@ function SettingsContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           msg_type: 'text',
-          content: { text: `🤝 Warm Handover 测试通知\n项目: ${handover?.project_name}\n状态: 集成测试成功` },
+          content: { text: `🤝 Warm Handover 测试通知\n项目: ${handover?.projectName}\n状态: 集成测试成功` },
         }),
       });
       alert(`${name} 测试消息已发送`);
@@ -53,7 +62,7 @@ function SettingsContent() {
     }
   };
 
-  if (!handover) return <div className="min-h-screen flex items-center justify-center">加载中...</div>;
+  if (!handover) return <div className="min-h-screen flex items-center justify-center dark:bg-stone-950 dark:text-stone-300">加载中...</div>;
 
   const fields = [
     { key: 'feishu_webhook', label: '飞书 Webhook', icon: '🟢', placeholder: 'https://open.feishu.cn/open-apis/bot/v2/hook/...' },
@@ -65,17 +74,26 @@ function SettingsContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">⚙️ 集成设置</h1>
-          <p className="text-gray-500">{handover.person_name} → {handover.successor_name} · {handover.project_name}</p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-stone-100 mb-2">⚙️ 集成设置</h1>
+            <p className="text-gray-500 dark:text-stone-400">{handover.personName} → {handover.successorName} · {handover.projectName}</p>
+          </div>
+          <button
+            onClick={toggle}
+            className="p-2.5 bg-white dark:bg-stone-800 rounded-xl shadow-md border border-gray-200 dark:border-stone-700 hover:scale-110 transition-all"
+            aria-label="切换主题"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
+        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-lg p-8 space-y-6">
           {fields.map(f => (
             <div key={f.key}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-stone-300 mb-1">
                 {f.icon} {f.label}
               </label>
               <div className="flex gap-2">
@@ -84,12 +102,12 @@ function SettingsContent() {
                   value={integrations[f.key] || ''}
                   onChange={e => setIntegrations({ ...integrations, [f.key]: e.target.value })}
                   placeholder={f.placeholder}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all text-sm"
                 />
                 {(f.key.includes('webhook') && integrations[f.key]) && (
                   <button
                     onClick={() => testWebhook(integrations[f.key], f.label)}
-                    className="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl text-sm hover:bg-gray-200 transition-colors whitespace-nowrap"
+                    className="px-4 py-3 bg-gray-100 dark:bg-stone-800 text-gray-600 dark:text-stone-300 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-stone-700 transition-colors whitespace-nowrap"
                   >
                     测试
                   </button>
@@ -108,7 +126,7 @@ function SettingsContent() {
             </button>
             <button
               onClick={() => router.push(`/handover/${id}`)}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              className="px-6 py-3 bg-gray-100 dark:bg-stone-800 text-gray-700 dark:text-stone-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-stone-700 transition-colors"
             >
               返回
             </button>
@@ -116,9 +134,9 @@ function SettingsContent() {
         </div>
 
         {/* Help */}
-        <div className="mt-6 bg-orange-50 rounded-2xl p-6 text-sm text-orange-800">
+        <div className="mt-6 bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-6 text-sm text-orange-800 dark:text-orange-300">
           <h3 className="font-semibold mb-2">💡 如何获取 Webhook URL？</h3>
-          <ul className="space-y-1 text-orange-700">
+          <ul className="space-y-1 text-orange-700 dark:text-orange-400">
             <li><strong>飞书</strong>：群设置 → 群机器人 → 自定义机器人 → 复制 Webhook 地址</li>
             <li><strong>钉钉</strong>：群设置 → 智能群助手 → 添加机器人 → 自定义 → 复制 Webhook 地址</li>
             <li><strong>Slack</strong>：App 设置 → Incoming Webhooks → 添加 → 复制 Webhook URL</li>
