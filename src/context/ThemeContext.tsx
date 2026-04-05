@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -45,4 +45,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+export function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button
+      onClick={toggle}
+      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+    >
+      {theme === 'dark' ? '☀️' : '🌙'}
+    </button>
+  );
 }

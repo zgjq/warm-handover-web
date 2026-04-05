@@ -127,7 +127,7 @@ html {
   }
 
   /* Print-friendly document layout */
-  .bg-white, .dark\\:bg-stone-900 {
+  .bg-white {
     box-shadow: none !important;
     border: 1px solid #e5e7eb !important;
   }
