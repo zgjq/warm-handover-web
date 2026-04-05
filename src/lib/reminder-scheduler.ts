@@ -4,7 +4,7 @@
  */
 
 import cron from 'node-cron';
-import { DataService } from '@/lib/data-service';
+import { getDb } from '@/lib/db';
 
 interface ReminderPayload {
   handoverId: number;
@@ -32,70 +32,63 @@ function getReminderKey(handoverId: number, phase: string): string {
   return `${handoverId}-${phase}-${new Date().toDateString()}`;
 }
 
-export function sendWebhookNotification(url: string, payload: ReminderPayload): Promise<boolean> {
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      msg_type: 'text',
-      content: {
-        text: `🤝 Warm Handover 交接提醒\n\n` +
-          `📋 项目: ${payload.projectName}\n` +
-          `👤 离职人: ${payload.personName}\n` +
-          `🤝 接手人: ${payload.successorName}\n` +
-          `⏰ 阶段: ${payload.phase}\n` +
-          `📅 剩余: ${payload.daysRemaining} 天`,
-      },
-    }),
-  }).then(() => true).catch(() => false);
-}
-
-export function sendEmailNotification(to: string, payload: ReminderPayload): Promise<boolean> {
-  // Placeholder — would need nodemailer setup
-  console.log(`[Email] To: ${to} — ${payload.phase} reminder for ${payload.projectName}`);
-  return Promise.resolve(true);
+export async function sendWebhookNotification(url: string, payload: ReminderPayload): Promise<boolean> {
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        msg_type: 'text',
+        content: {
+          text: `🤝 Warm Handover 交接提醒\n\n📋 项目: ${payload.projectName}\n👤 离职人: ${payload.personName}\n🤝 接手人: ${payload.successorName}\n⏰ 阶段: ${payload.phase}\n📅 剩余: ${payload.daysRemaining} 天`,
+        },
+      }),
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function checkAndSendReminders() {
-  const handovers = DataService.list();
-  const today = new Date();
+  try {
+    const db = getDb();
+    const handovers = db.prepare('SELECT id, person_name, successor_name, project_name, departure_date FROM handovers WHERE departure_date IS NOT NULL').all() as any[];
+    const today = new Date();
 
-  for (const h of handovers) {
-    if (!h.departureDate) continue;
+    for (const h of handovers) {
+      const departureDate = new Date(h.departure_date);
+      const daysRemaining = Math.ceil((departureDate.getTime() - today.getTime()) / 86400000);
 
-    const departureDate = new Date(h.departureDate);
-    const daysRemaining = Math.ceil((departureDate.getTime() - today.getTime()) / 86400000);
+      for (const phase of PHASES) {
+        if (daysRemaining === phase.days) {
+          const key = getReminderKey(h.id, phase.label);
+          if (sentReminders.has(key)) continue;
 
-    for (const phase of PHASES) {
-      if (daysRemaining === phase.days) {
-        const key = getReminderKey(h.id, phase.label);
-        if (sentReminders.has(key)) continue;
+          const payload: ReminderPayload = {
+            handoverId: h.id,
+            phase: phase.label,
+            personName: h.person_name,
+            successorName: h.successor_name || '待确定',
+            projectName: h.project_name,
+            daysRemaining,
+          };
 
-        const payload: ReminderPayload = {
-          handoverId: h.id,
-          phase: phase.label,
-          personName: h.personName,
-          successorName: h.successorName || '待确定',
-          projectName: h.projectName,
-          daysRemaining,
-        };
-
-        console.log(`[Reminder] ${phase.label} for ${h.personName} → ${h.successorName || '待确定'} (${h.projectName})`);
-        sentReminders.add(key);
+          console.log(`[Reminder] ${phase.label} for ${h.person_name} → ${h.successor_name || '待确定'} (${h.project_name})`);
+          sentReminders.add(key);
+        }
       }
     }
+  } catch (e) {
+    console.error('[Reminder] Error checking reminders:', e);
   }
 }
 
 // Start cron job — runs every hour
 export function startReminderScheduler() {
-  // Run immediately on startup
   checkAndSendReminders();
-
-  // Then every hour
   cron.schedule('0 * * * *', () => {
     checkAndSendReminders();
   });
-
   console.log('[Reminder] Scheduler started — checks every hour');
 }

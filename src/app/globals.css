@@ -16,6 +16,12 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+/* Dark mode utility */
+.dark body {
+  background: #0c0a09;
+  color: #fafaf9;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
@@ -88,16 +94,17 @@ html {
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-/* Print styles */
+/* Print styles — PDF-ready */
 @media print {
-  nav, button, .no-print {
+  nav, button, .no-print, footer, header {
     display: none !important;
   }
 
   body {
     background: white !important;
     color: black !important;
-    font-size: 12pt;
+    font-size: 11pt;
+    line-height: 1.6;
   }
 
   .print-break {
@@ -116,5 +123,17 @@ html {
   pre, code {
     white-space: pre-wrap !important;
     word-break: break-word !important;
+    font-size: 10pt;
+  }
+
+  /* Print-friendly document layout */
+  .bg-white, .dark\\:bg-stone-900 {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Each section on its own page */
+  .print-section {
+    page-break-inside: avoid;
   }
 }

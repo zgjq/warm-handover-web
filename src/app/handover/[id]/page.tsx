@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import SmartFollowUp from '@/components/SmartFollowUp';
+import Certificate from '@/components/Certificate';
 
 type Tab = 'overview' | 'interview' | 'timeline' | 'knowledge' | 'comments' | 'settings';
 
@@ -255,6 +257,29 @@ export default function HandoverDetailPage() {
                 ⚙️ 集成设置
               </button>
             </div>
+
+            {/* Smart Follow-up */}
+            <SmartFollowUp
+              handoverId={Number(id)}
+              answers={handover.answers || {}}
+              role={handover.role || 'backend'}
+              onNavigate={(category, questionKey) => {
+                router.push(`/interview?id=${id}&cat=${category}&q=${questionKey}`);
+              }}
+            />
+
+            {/* Certificate */}
+            {(handover.answeredQuestions || 0) > 0 && (
+              <Certificate
+                personName={handover.person_name}
+                successorName={handover.successor_name}
+                projectName={handover.project_name}
+                completedDate={new Date().toLocaleDateString('zh-CN')}
+                score={score?.total_score || 0}
+                answeredCount={handover.answeredQuestions || 0}
+                totalQuestions={handover.totalQuestions || 0}
+              />
+            )}
           </div>
         )}
 

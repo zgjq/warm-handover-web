@@ -2,130 +2,131 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { DataService } from '@/lib/data-service';
+import { useTheme } from '@/context/ThemeContext';
 
 function KnowledgeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
+  const { theme, toggle } = useTheme();
 
   const [handover, setHandover] = useState<any>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/handover?id=${id}`)
-      .then(r => r.json())
-      .then(data => setHandover(data))
-      .catch(() => router.push('/list'));
+    DataService.get(Number(id))
+      .then(data => {
+        if (!data) { router.push('/new'); return; }
+        setHandover(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [id]);
 
   const handleSearch = async () => {
     if (!query.trim() || !id) return;
-    setLoading(true);
+    setSearching(true);
+    setError('');
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handoverId: Number(id), query: query.trim() }),
+        body: JSON.stringify({ handoverId: Number(id), query }),
       });
+      if (!res.ok) throw new Error('搜索失败');
       const data = await res.json();
       setResults(data);
-      setSearched(true);
-    } catch {
-      setResults([]);
+    } catch (e: any) {
+      setError(e.message || '搜索出错');
+    } finally {
+      setSearching(false);
     }
-    setLoading(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
-  };
-
-  if (!handover) return <div className="min-h-screen flex items-center justify-center">加载中...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center dark:bg-stone-950 dark:text-stone-300">加载中...</div>;
+  if (!handover) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">🔍 知识库</h1>
-          <p className="text-gray-500">{handover.person_name} → {handover.successor_name} · {handover.project_name}</p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="输入关键词搜索交接知识..."
-              className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
-            >
-              {loading ? '搜索中...' : '搜索'}
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-stone-100 mb-2">🔍 知识库搜索</h1>
+            <p className="text-gray-500 dark:text-stone-400">{handover.personName} · {handover.projectName}</p>
           </div>
+          <button
+            onClick={toggle}
+            className="p-2.5 bg-white dark:bg-stone-800 rounded-xl shadow-md border border-gray-200 dark:border-stone-700 hover:scale-110 transition-all"
+            aria-label="切换主题"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
         </div>
 
-        {/* Results */}
-        {searched && (
-          <div className="space-y-4">
-            {results.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-                <div className="text-4xl mb-3">🔍</div>
-                <p className="text-gray-500">没有找到相关内容</p>
-                <p className="text-sm text-gray-400 mt-1">试试其他关键词</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-gray-500">找到 {results.length} 条相关内容</p>
-                {results.map((r, i) => (
-                  <div key={i} className="bg-white rounded-2xl shadow-lg p-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">{r.category}</span>
-                      <span className="text-sm font-medium text-gray-700">{r.question_label}</span>
-                    </div>
-                    <p className="text-gray-700 whitespace-pre-wrap">{r.answer}</p>
-                    <div className="mt-3 text-xs text-gray-400">
-                      💡 这个回答来自 {handover.person_name} 关于「{r.question_label}」的回答
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
+        {/* Search */}
+        <div className="flex gap-3 mb-6">
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="搜索交接内容..."
+            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={searching || !query.trim()}
+            className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
+          >
+            {searching ? '🔍 搜索中...' : '搜索'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+            ❌ {error}
           </div>
         )}
 
-        {/* All Answers Browse */}
-        {!searched && handover.answers && handover.answers.length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">📚 浏览所有交接内容</h2>
-            <div className="space-y-4">
-              {handover.answers.filter((a: any) => a.answer && a.answer.trim()).map((a: any, i: number) => (
-                <div key={i} className="bg-white rounded-2xl shadow-lg p-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">{a.category}</span>
-                    <span className="text-sm font-medium text-gray-700">{a.question_label}</span>
-                  </div>
-                  <p className="text-gray-700 whitespace-pre-wrap">{a.answer}</p>
-                </div>
-              ))}
-            </div>
+        {/* Results */}
+        {results.length > 0 && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-stone-400">找到 {results.length} 条结果</p>
+            {results.map((r, i) => (
+              <div key={i} className="bg-white dark:bg-stone-900 rounded-2xl shadow-lg p-6">
+                <div className="text-xs text-orange-500 dark:text-orange-400 font-medium mb-1">{r.category?.replace('.md', '') || r.question_key}</div>
+                <div className="text-sm text-gray-500 dark:text-stone-400 mb-2">{r.question_label || r.question_key}</div>
+                <div className="text-gray-700 dark:text-stone-300 whitespace-pre-wrap">{r.answer}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {query && results.length === 0 && !searching && (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">🔍</div>
+            <p className="text-gray-500 dark:text-stone-400">没有找到匹配的内容</p>
+          </div>
+        )}
+
+        {!query && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🧠</div>
+            <h2 className="text-xl font-semibold text-gray-700 dark:text-stone-300 mb-2">搜索交接知识</h2>
+            <p className="text-gray-500 dark:text-stone-400">输入关键词，搜索所有访谈记录</p>
           </div>
         )}
 
         <div className="mt-8 text-center">
           <button
             onClick={() => router.push(`/handover/${id}`)}
-            className="px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors"
+            className="px-6 py-3 bg-white dark:bg-stone-800 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 rounded-xl font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
           >
             ← 返回交接详情
           </button>

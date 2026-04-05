@@ -1,13 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function HomePage() {
   const [visible, setVisible] = useState(false);
+  const { theme, toggle } = useTheme();
   useEffect(() => { setVisible(true); }, []);
 
   return (
     <div className="min-h-screen">
+      {/* Dark mode toggle - fixed top-right */}
+      <button
+        onClick={toggle}
+        className="fixed top-4 right-4 z-50 p-2.5 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm rounded-xl shadow-md border border-gray-200 dark:border-stone-700 hover:scale-110 transition-all"
+        aria-label={theme === 'dark' ? '切换浅色模式' : '切换深色模式'}
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 text-white">
         <div className="absolute inset-0 opacity-10">
@@ -48,25 +59,25 @@ export default function HomePage() {
       </section>
 
       {/* Problem Statement */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-stone-900">
         <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">同事离职，知识随之而去？</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-stone-100 mb-4">同事离职，知识随之而去？</h2>
+            <p className="text-gray-500 dark:text-stone-400 max-w-2xl mx-auto">
               每次有人离开，团队就失去一部分"只有他知道"的知识。<br />
               传统的交接只是走过场——三页文档，概括三年的积累。
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { emoji: '📋', title: '没有结构化', desc: '聊天记录和文档是噪音，不是知识。最宝贵的隐性知识永远不会出现在聊天里。', color: 'bg-red-50' },
-              { emoji: '🤖', title: 'AI 替身是幻觉', desc: '把一个人变成 AI 克隆？那是对人的不尊重。ELIZA 效应不等于真正的知识传承。', color: 'bg-orange-50' },
-              { emoji: '⏰', title: '交接是流程，不是工具', desc: 'T-30 到 T+90 的完整流程，不是一次性生成两个文件就结束。', color: 'bg-amber-50' },
-            ].map((item, i) => (
+              { emoji: '📋', title: '没有结构化', desc: '聊天记录和文档是噪音，不是知识。最宝贵的隐性知识永远不会出现在聊天里。', color: 'bg-red-50 dark:bg-red-900/20' },
+              { emoji: '🤖', title: 'AI 替身是幻觉', desc: '把一个人变成 AI 克隆？那是对人的不尊重。ELIZA 效应不等于真正的知识传承。', color: 'bg-orange-50 dark:bg-orange-900/20' },
+              { emoji: '⏰', title: '交接是流程，不是工具', desc: 'T-30 到 T+90 的完整流程，不是一次性生成两个文件就结束。', color: 'bg-amber-50 dark:bg-amber-900/20' },
+            ].map((item) => (
               <div key={item.title} className={`p-6 ${item.color} rounded-2xl transition-all hover:scale-105 hover:shadow-md cursor-default`}>
                 <div className="text-4xl mb-4">{item.emoji}</div>
-                <h3 className="font-semibold text-gray-800 mb-2">{item.title}</h3>
-                <p className="text-sm text-gray-600">{item.desc}</p>
+                <h3 className="font-semibold text-gray-800 dark:text-stone-100 mb-2">{item.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-stone-400">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -74,9 +85,9 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="py-16 bg-gradient-to-b from-white to-orange-50">
+      <section className="py-16 bg-gradient-to-b from-white to-orange-50 dark:from-stone-900 dark:to-stone-950">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-12">三步完成有尊严的交接</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-stone-100 text-center mb-12">三步完成有尊严的交接</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { step: '01', title: '引导式访谈', desc: '按角色定制的交互式问卷，引导离职者系统地回顾和分享关键知识。不是爬数据，是真正有尊严的对话。', emoji: '🎯' },
@@ -84,11 +95,11 @@ export default function HomePage() {
               { step: '03', title: '活文档持续更新', desc: '交接不是终点。接手者每遇到新问题就更新文档，让个人经验变成团队知识。', emoji: '🔄' },
             ].map(item => (
               <div key={item.step} className="relative group">
-                <div className="text-6xl font-black text-orange-100 absolute -top-4 -left-2 group-hover:text-orange-200 transition-colors">{item.step}</div>
-                <div className="relative bg-white rounded-2xl shadow-lg p-6 pt-10 transition-all hover:shadow-xl hover:-translate-y-1">
+                <div className="text-6xl font-black text-orange-100 dark:text-orange-900/40 absolute -top-4 -left-2 group-hover:text-orange-200 transition-colors">{item.step}</div>
+                <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-lg p-6 pt-10 transition-all hover:shadow-xl hover:-translate-y-1">
                   <div className="text-3xl mb-3">{item.emoji}</div>
-                  <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
-                  <p className="text-sm text-gray-600">{item.desc}</p>
+                  <h3 className="font-bold text-gray-800 dark:text-stone-100 mb-2">{item.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-stone-400">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -97,10 +108,10 @@ export default function HomePage() {
       </section>
 
       {/* V2 Features */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-stone-900">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-4">🔥 V2 核心功能</h2>
-          <p className="text-gray-500 text-center mb-12">不只是问答，而是完整的知识交接生态系统</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-stone-100 text-center mb-4">🔥 V2 核心功能</h2>
+          <p className="text-gray-500 dark:text-stone-400 text-center mb-12">不只是问答，而是完整的知识交接生态系统</p>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { emoji: '🧠', title: 'AI 知识库', desc: '可搜索、可对话的知识库。每次回答标注引用来源，不是克隆人，是索引化的知识。', route: '/knowledge' },
@@ -109,15 +120,15 @@ export default function HomePage() {
               { emoji: '⚙️', title: '工具集成', desc: '飞书/钉钉/Slack Webhook 配置。自动推送交接提醒，不用多开一个工具。', route: '/settings' },
               { emoji: '📋', title: '统一详情页', desc: 'Tab 式布局整合访谈、时间线、知识库、评论。所有信息一处查看。', route: '/handover/1' },
               { emoji: '📅', title: '交接时间线', desc: 'T-30 到 T-0 的完整交接清单。可视化进度追踪，可勾选可自定义。', route: '/timeline' },
-            ].map((f, i) => (
+            ].map((f) => (
               <a
                 key={f.title}
                 href={f.route}
-                className="block p-6 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-lg hover:border-orange-200 transition-all hover:-translate-y-1 group"
+                className="block p-6 bg-white dark:bg-stone-800 border border-gray-100 dark:border-stone-700 rounded-2xl shadow-sm hover:shadow-lg hover:border-orange-200 dark:hover:border-orange-700 transition-all hover:-translate-y-1 group"
               >
                 <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">{f.emoji}</div>
-                <h3 className="font-bold text-gray-800 mb-2 group-hover:text-orange-600 transition-colors">{f.title}</h3>
-                <p className="text-sm text-gray-600">{f.desc}</p>
+                <h3 className="font-bold text-gray-800 dark:text-stone-100 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">{f.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-stone-400">{f.desc}</p>
               </a>
             ))}
           </div>
@@ -125,21 +136,21 @@ export default function HomePage() {
       </section>
 
       {/* VS Colleague-Skill */}
-      <section id="vs" className="py-16 bg-gradient-to-b from-orange-50 to-white">
+      <section id="vs" className="py-16 bg-gradient-to-b from-orange-50 to-white dark:from-stone-950 dark:to-stone-900">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-4">为什么比 Colleague-Skill 更好？</h2>
-          <p className="text-gray-500 text-center mb-12">不是批评，是事实对比</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-stone-100 text-center mb-4">为什么比 Colleague-Skill 更好？</h2>
+          <p className="text-gray-500 dark:text-stone-400 text-center mb-12">不是批评，是事实对比</p>
 
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-stone-700">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-gray-500 font-medium"></th>
+                <tr className="bg-gray-50 dark:bg-stone-800">
+                  <th className="px-4 py-3 text-left text-gray-500 dark:text-stone-400 font-medium"></th>
                   <th className="px-4 py-3 text-center text-red-500 font-medium">❌ Colleague-Skill</th>
                   <th className="px-4 py-3 text-center text-green-600 font-medium">✅ Warm Handover</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-stone-800">
                 {[
                   ['数据来源', '爬聊天记录\n（被动、冰冷）', '引导式访谈\n（主动、温暖）'],
                   ['知识质量', '噪音为主\n（缺乏上下文）', '结构化知识\n（经过思考）'],
@@ -152,10 +163,10 @@ export default function HomePage() {
                   ['法律合规', '零提示\n（爬数据风险）', '完全合规\n（主动授权）'],
                   ['人的尊严', '把人变成数据\n（冰冷）', '尊重人的经验\n（温暖）'],
                 ].map(([label, cold, warm], i) => (
-                  <tr key={i} className="hover:bg-orange-50/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">{label}</td>
-                    <td className="px-4 py-3 text-center text-red-600 whitespace-pre-line">{cold}</td>
-                    <td className="px-4 py-3 text-center text-green-700 font-medium whitespace-pre-line">{warm}</td>
+                  <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-stone-800/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-700 dark:text-stone-300 whitespace-nowrap">{label}</td>
+                    <td className="px-4 py-3 text-center text-red-600 dark:text-red-400 whitespace-pre-line">{cold}</td>
+                    <td className="px-4 py-3 text-center text-green-700 dark:text-green-400 font-medium whitespace-pre-line">{warm}</td>
                   </tr>
                 ))}
               </tbody>
@@ -165,17 +176,17 @@ export default function HomePage() {
       </section>
 
       {/* Philosophy */}
-      <section className="py-16 bg-gradient-to-br from-orange-50 to-amber-50">
+      <section className="py-16 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-stone-900 dark:to-stone-800">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <div className="text-4xl mb-6">💡</div>
-          <blockquote className="text-xl text-gray-700 italic leading-relaxed mb-6">
+          <blockquote className="text-xl text-gray-700 dark:text-stone-300 italic leading-relaxed mb-6">
             "colleague-skill 的核心假设是：一个人的价值 = 他的聊天记录。<br />
             这是对人最大的不尊重。<br /><br />
             一个人的价值在于他做过的决定和背后的思考过程，<br />
             在于他积累的对团队和业务的隐性理解，<br />
             在于他愿意主动分享的经验，而不是被爬出来的碎片。"
           </blockquote>
-          <div className="text-sm text-gray-500">— Warm Handover 哲学</div>
+          <div className="text-sm text-gray-500 dark:text-stone-500">— Warm Handover 哲学</div>
         </div>
       </section>
 
@@ -204,7 +215,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 bg-gray-900 text-gray-400 text-center text-sm">
+      <footer className="py-8 bg-gray-900 dark:bg-black text-gray-400 dark:text-stone-500 text-center text-sm">
         <p className="mb-2">Warm Handover — 让经验活下来</p>
         <div className="flex justify-center gap-4">
           <a href="https://github.com/zgjq/warm-handover-web" className="text-orange-400 hover:text-orange-300">Web 应用</a>

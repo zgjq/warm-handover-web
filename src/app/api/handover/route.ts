@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHandover, listHandovers, createHandover, updateHandover, saveAnswer, getAnswers, getAnswerCount, calculateScore } from '@/lib/db';
+import { getHandover, listHandovers, createHandover, updateHandover, saveAnswer, getAnswers, getAnswerCount, calculateScore, getDb } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
@@ -15,25 +15,50 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { action, ...data } = body;
+  try {
+    const body = await req.json();
+    const { action, ...data } = body;
 
-  if (action === 'create') {
-    const id = createHandover(data.personName, data.successorName || '待确定', data.projectName || '项目', data.role || 'backend', data.departureDate);
-    return NextResponse.json({ id });
+    if (action === 'create') {
+      const id = createHandover(data.personName, data.successorName || '待确定', data.projectName || '项目', data.role || 'backend', data.departureDate);
+      return NextResponse.json({ id });
+    }
+
+    if (action === 'update') {
+      const { id, ...fields } = data;
+      updateHandover(Number(id), fields);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (action === 'saveAnswer') {
+      saveAnswer(Number(data.handoverId), data.category, data.questionKey, data.questionLabel || '', data.answer);
+      calculateScore(Number(data.handoverId));
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (e: any) {
+    console.error('[API/handover] Error:', e);
+    return NextResponse.json({ error: e.message || 'Internal server error' }, { status: 500 });
   }
+}
 
-  if (action === 'update') {
-    const { id, ...fields } = data;
-    updateHandover(Number(id), fields);
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    const db = getDb();
+    db.prepare('DELETE FROM answers WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM comments WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM checklist_items WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM reminders WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM scores WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM integrations WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM audit_log WHERE handover_id = ?').run(Number(id));
+    db.prepare('DELETE FROM handovers WHERE id = ?').run(Number(id));
     return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error('[API/handover DELETE] Error:', e);
+    return NextResponse.json({ error: e.message || 'Delete failed' }, { status: 500 });
   }
-
-  if (action === 'saveAnswer') {
-    saveAnswer(Number(data.handoverId), data.category, data.questionKey, data.questionLabel || '', data.answer);
-    calculateScore(Number(data.handoverId));
-    return NextResponse.json({ ok: true });
-  }
-
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }

@@ -1,31 +1,43 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
-  dark: boolean;
+  theme: Theme;
   toggle: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextType>({ dark: false, toggle: () => {} });
+const ThemeContext = createContext<ThemeContextType>({
+  theme: 'light',
+  toggle: () => {},
+});
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [dark, setDark] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('wh_theme') === 'dark';
-    }
-    return false;
-  });
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>('light');
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('wh_theme', dark ? 'dark' : 'light');
-  }, [dark]);
+    setMounted(true);
+    const saved = localStorage.getItem('wh_theme');
+    const initial: Theme = saved === 'dark' ? 'dark' : 'light';
+    setTheme(initial);
+    document.documentElement.classList.toggle('dark', initial === 'dark');
+  }, []);
 
-  const toggle = () => setDark(d => !d);
+  const toggle = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    localStorage.setItem('wh_theme', next);
+  };
+
+  // Avoid flash of wrong theme
+  if (!mounted) return <>{children}</>;
 
   return (
-    <ThemeContext.Provider value={{ dark, toggle }}>
+    <ThemeContext.Provider value={{ theme, toggle }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -33,17 +45,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
-}
-
-export function ThemeToggle() {
-  const { dark, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-      aria-label={dark ? '切换到浅色模式' : '切换到深色模式'}
-    >
-      {dark ? '☀️' : '🌙'}
-    </button>
-  );
 }
