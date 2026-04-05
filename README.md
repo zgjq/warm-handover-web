@@ -51,20 +51,32 @@
 | `LESSONS.md` | 经验教训、重来会怎么做、给下一任的话 |
 | `TODO.md` | 待办清单、已知问题、时间敏感事项 |
 
-#### AI 知识库（v2 新增）
-- 把访谈结果变成**可搜索、可对话**的知识库
-- 接手人可以直接提问，AI 基于访谈记录回答
-- 每次回答附带**引用来源**
+### 🆚 为什么比 Colleague-Skill 更强？
 
-#### 管理者看板（v2 新增）
-- 所有交接项目的评分 + 进度一览
-- 访谈完成度、时间线进度、文档质量
-- 风险预警：低于 60 分标红
+| 维度 | Colleague-Skill | Warm Handover |
+|------|----------------|---------------|
+| 数据来源 | 爬聊天记录（被动、冰冷） | 引导式访谈（主动、温暖） |
+| 知识质量 | 噪音为主，缺乏上下文 | 结构化、经过思考 |
+| 输出形式 | AI 替身（ELIZA 效应） | 交接文档 + 知识库（实用、可追溯） |
+| 持续性 | 静态快照，过时即废 | 活文档 + 评论 + 评分，持续更新 |
+| 用户体验 | CLI only | 完整 Web 应用，开箱即用 |
+| 交接流程 | 无 | T-30 到 T+90 完整时间线 |
+| 团队协作 | 无 | 离职人 / 接手人 / 管理者三方协作 |
+| 质量评估 | 无 | 综合评分 0-100 + 风险预警 |
+| 法律合规 | 零提示 | 完全合规，主动授权 |
+| 人的尊严 | 把人变成数据 | 尊重人的经验和判断 |
 
-#### 团队协作（v2 新增）
-- 三种角色视图：离职人 / 接手人 / 管理者
-- 每个回答可以评论
-- 变更日志自动记录
+### 🔥 V2 核心亮点
+
+> 不只是问答，而是完整的知识交接生态系统。
+
+| 功能 | 解决了什么问题 |
+|------|--------------|
+| 🧠 **AI 知识库** | 文档放着没人看 = 白做。现在可以搜索、可以对话，每次回答标注来源 |
+| 📊 **管理者看板** | 管理者不知道交接质量。现在 0-100 评分 + 风险预警一目了然 |
+| 💬 **团队协作** | 交接不是一个人的事。离职人/接手人/管理者三方评论 + 变更日志 |
+| ⚙️ **工具集成** | 不想多开一个工具。飞书/钉钉/Slack Webhook 直接推送提醒 |
+| 📋 **统一详情页** | 功能分散不好找。Tab 式布局整合所有信息于一处 |
 
 ### 🚀 快速开始
 
@@ -174,6 +186,33 @@ Open [http://localhost:3000](http://localhost:3000).
 - **node-cron** — Scheduled reminders
 - **nodemailer** — Email notifications
 - **WebSocket** — Real-time notifications
+
+### Why Warm Handover > Colleague-Skill
+
+| Dimension | Colleague-Skill | Warm Handover |
+|-----------|----------------|---------------|
+| Data Source | Scraped chat logs (passive, cold) | Guided interviews (active, warm) |
+| Knowledge Quality | Noise, lacks context | Structured, thoughtful |
+| Output | AI clone (ELIZA effect) | Documents + KB (practical, traceable) |
+| Continuity | Static snapshot, decays | Living docs + comments + scoring |
+| UX | CLI only | Full Web app, ready to use |
+| Handover Process | None | T-30 to T+90 complete timeline |
+| Collaboration | None | Three roles: departing / successor / manager |
+| Quality Assessment | None | Score 0-100 + risk alerts |
+| Legal Compliance | Zero mention | Fully compliant, opt-in |
+| Human Dignity | Turns people into data | Respects experience and judgment |
+
+### 🔥 V2 Highlights
+
+> Not just Q&A — a complete knowledge handover ecosystem.
+
+| Feature | Problem Solved |
+|---------|---------------|
+| 🧠 **AI Knowledge Base** | Documents no one reads = wasted. Now searchable + conversational with citations |
+| 📊 **Manager Dashboard** | Managers can't see handover quality. Now 0-100 scoring + risk alerts at a glance |
+| 💬 **Team Collaboration** | Handover isn't a one-person job. Three roles with comments + audit log |
+| ⚙️ **Tool Integration** | Don't want another tool. Feishu/DingTalk/Slack webhooks push reminders directly |
+| 📋 **Unified Detail Page** | Scattered features are hard to find. Tab layout brings everything together |
 
 ### Why Not Colleague-Skill?
 
