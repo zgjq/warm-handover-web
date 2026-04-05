@@ -26,7 +26,16 @@ function KnowledgeContent() {
         setHandover(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        // Fallback to LocalStorage
+        const raw = localStorage.getItem(`handover_${id}`);
+        if (raw) {
+          setHandover(JSON.parse(raw));
+        } else {
+          router.push('/new');
+        }
+        setLoading(false);
+      });
   }, [id]);
 
   const handleSearch = async () => {
