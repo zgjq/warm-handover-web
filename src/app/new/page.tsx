@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { roleTemplates } from '@/lib/questions';
+import { templates as scenarioTemplates, getTemplate } from '@/lib/templates';
 import { DataService } from '@/lib/data-service';
 
 const roles = roleTemplates;
@@ -151,6 +152,16 @@ export default function NewHandoverPage() {
           {step === 3 && (
             <div className="space-y-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-stone-300 mb-3">选择交接场景</label>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {scenarioTemplates.map(t => (
+                    <div key={t.id} className="p-3 bg-gray-50 dark:bg-stone-800 rounded-xl text-center text-sm">
+                      <div className="text-2xl mb-1">{t.emoji}</div>
+                      <div className="font-medium text-gray-700 dark:text-stone-200">{t.name}</div>
+                      <div className="text-xs text-gray-400 dark:text-stone-400">{t.description}</div>
+                    </div>
+                  ))}
+                </div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-stone-300 mb-3">选择角色模板</label>
                 <div className="grid grid-cols-1 gap-3">
                   {roles.map(r => (

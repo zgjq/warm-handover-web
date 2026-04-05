@@ -290,13 +290,13 @@ export function getAuditLog(handoverId: number) {
 // Integrations
 export function saveIntegration(handoverId: number, data: Record<string, string | null>) {
   const db = getDb();
-  const fields = Object.entries(data).map(([k]) => `${k} = ?`).join(', ');
-  const values = Object.values(data);
+  const cols = Object.keys(data);
+  const updateCols = cols.map(c => `${c} = excluded.${c}`).join(', ');
   db.prepare(`
-    INSERT INTO integrations (handover_id, ${Object.keys(data).join(', ')}, updated_at)
-    VALUES (?, ${values.map(() => '?').join(', ')}, CURRENT_TIMESTAMP)
-    ON CONFLICT(handover_id) DO UPDATE SET ${fields}, updated_at = CURRENT_TIMESTAMP
-  `).run(handoverId, ...values, ...values);
+    INSERT INTO integrations (handover_id, ${cols.join(', ')}, updated_at)
+    VALUES (?, ${cols.map(() => '?').join(', ')}, CURRENT_TIMESTAMP)
+    ON CONFLICT(handover_id) DO UPDATE SET ${updateCols}, updated_at = CURRENT_TIMESTAMP
+  `).run(handoverId, ...Object.values(data));
 }
 
 export function getIntegration(handoverId: number) {
