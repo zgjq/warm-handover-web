@@ -20,6 +20,20 @@ function KnowledgeContent() {
 
   useEffect(() => {
     if (!id) return;
+    
+    // Try LocalStorage first (always works in browser)
+    const raw = localStorage.getItem(`handover_${id}`);
+    if (raw) {
+      try {
+        setHandover(JSON.parse(raw));
+        setLoading(false);
+        return;
+      } catch {
+        // Continue to API fallback
+      }
+    }
+    
+    // Fallback to API
     DataService.get(Number(id))
       .then(data => {
         if (!data) { router.push('/new'); return; }
@@ -27,13 +41,7 @@ function KnowledgeContent() {
         setLoading(false);
       })
       .catch(() => {
-        // Fallback to LocalStorage
-        const raw = localStorage.getItem(`handover_${id}`);
-        if (raw) {
-          setHandover(JSON.parse(raw));
-        } else {
-          router.push('/new');
-        }
+        router.push('/new');
         setLoading(false);
       });
   }, [id]);
