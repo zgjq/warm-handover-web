@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHandover, listHandovers, createHandover, updateHandover, saveAnswer, getAnswers, getAnswerCount, calculateScore, getDb } from '@/lib/db';
 
+function dbError() {
+  return NextResponse.json({ error: 'Database unavailable in serverless environment. Use LocalStorage mode.', status: 503 });
+}
+
 export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get('id');
-  if (id) {
-    const h = getHandover(Number(id));
-    if (!h) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const answers = getAnswers(Number(id));
-    const { total, answered } = getAnswerCount(Number(id));
-    const score = calculateScore(Number(id));
-    return NextResponse.json({ ...h, answers, totalQuestions: total, answeredQuestions: answered, score });
+  try {
+    const id = req.nextUrl.searchParams.get('id');
+    if (id) {
+      const h = getHandover(Number(id));
+      if (!h) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const answers = getAnswers(Number(id));
+      const { total, answered } = getAnswerCount(Number(id));
+      const score = calculateScore(Number(id));
+      return NextResponse.json({ ...h, answers, totalQuestions: total, answeredQuestions: answered, score });
+    }
+    return NextResponse.json(listHandovers());
+  } catch (e: any) {
+    if (e.message === 'DATABASE_UNAVAILABLE') return dbError();
+    console.error('[API/handover GET]', e);
+    return NextResponse.json({ error: e.message || 'Internal error' }, { status: 500 });
   }
-  return NextResponse.json(listHandovers());
 }
 
 export async function POST(req: NextRequest) {
@@ -38,8 +48,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e: any) {
-    console.error('[API/handover] Error:', e);
-    return NextResponse.json({ error: e.message || 'Internal server error' }, { status: 500 });
+    if (e.message === 'DATABASE_UNAVAILABLE') return dbError();
+    console.error('[API/handover POST]', e);
+    return NextResponse.json({ error: e.message || 'Internal error' }, { status: 500 });
   }
 }
 
@@ -58,7 +69,8 @@ export async function DELETE(req: NextRequest) {
     db.prepare('DELETE FROM handovers WHERE id = ?').run(Number(id));
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    console.error('[API/handover DELETE] Error:', e);
+    if (e.message === 'DATABASE_UNAVAILABLE') return dbError();
+    console.error('[API/handover DELETE]', e);
     return NextResponse.json({ error: e.message || 'Delete failed' }, { status: 500 });
   }
 }

@@ -12,13 +12,16 @@ const PHASES = [
 ];
 
 export async function GET() {
-  // Just return pending reminders for debugging
-  const pending = getPendingReminders();
-  return NextResponse.json(pending);
+  try {
+    const pending = getPendingReminders();
+    return NextResponse.json(pending);
+  } catch (e: any) {
+    if (e.message === 'DATABASE_UNAVAILABLE') return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
+    return NextResponse.json({ error: e.message || 'Failed' }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  // Trigger reminder check — called by external cron or manually
   try {
     const db = getDb();
     const handovers = db.prepare('SELECT * FROM handovers WHERE departure_date IS NOT NULL').all() as any[];
@@ -33,16 +36,13 @@ export async function POST(req: NextRequest) {
 
       for (const phase of PHASES) {
         if (daysRemaining === phase.days) {
-          // Check if already sent today
           const alreadySent = db.prepare(
             'SELECT id FROM reminders WHERE handover_id = ? AND phase = ? AND sent = 1 AND DATE(sent_at) = DATE("now")'
           ).get(h.id, phase.label);
 
           if (alreadySent) continue;
 
-          // Get integration webhooks
           const integration = db.prepare('SELECT * FROM integrations WHERE handover_id = ?').get(h.id) as any;
-
           const payload = {
             msg_type: 'text',
             content: {
@@ -50,7 +50,6 @@ export async function POST(req: NextRequest) {
             },
           };
 
-          // Send to all configured webhooks
           const webhooks = [
             integration?.feishu_webhook,
             integration?.dingtalk_webhook,
@@ -58,14 +57,9 @@ export async function POST(req: NextRequest) {
           ].filter(Boolean);
 
           for (const url of webhooks) {
-            try {
-              await sendWebhook(url, payload);
-            } catch {
-              console.error(`[Reminders] Failed to send to ${url}`);
-            }
+            try { await sendWebhook(url, payload); } catch { /* ignore */ }
           }
 
-          // Record the reminder
           db.prepare(
             'INSERT INTO reminders (handover_id, phase, sent, sent_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)'
           ).run(h.id, phase.label);
@@ -77,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, sent, count: sent.length });
   } catch (e: any) {
+    if (e.message === 'DATABASE_UNAVAILABLE') return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
     console.error('[API/reminders] Error:', e);
     return NextResponse.json({ error: e.message || 'Failed' }, { status: 500 });
   }

@@ -4,141 +4,146 @@ import path from 'path';
 const DB_PATH = path.join(process.cwd(), 'data', 'handover.db');
 
 let db: Database.Database | null = null;
+let dbError: Error | null = null;
 
-export function getDb(): Database.Database {
+function tryInitDb(): Database.Database | null {
   if (db) return db;
+  if (dbError) return null;
+  try {
+    const fs = require('fs');
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
 
-  const fs = require('fs');
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS handovers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_name TEXT NOT NULL,
+        successor_name TEXT DEFAULT '待确定',
+        project_name TEXT DEFAULT '项目',
+        role TEXT DEFAULT 'backend',
+        departure_date TEXT,
+        status TEXT DEFAULT 'draft',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
 
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
+      CREATE TABLE IF NOT EXISTS answers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        question_key TEXT NOT NULL,
+        question_label TEXT DEFAULT '',
+        answer TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-  // Core tables
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS handovers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      person_name TEXT NOT NULL,
-      successor_name TEXT DEFAULT '待确定',
-      project_name TEXT DEFAULT '项目',
-      role TEXT DEFAULT 'backend',
-      departure_date TEXT,
-      status TEXT DEFAULT 'draft',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+      CREATE TABLE IF NOT EXISTS checklist_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL,
+        phase TEXT NOT NULL,
+        item TEXT NOT NULL,
+        completed INTEGER DEFAULT 0,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-    CREATE TABLE IF NOT EXISTS answers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL,
-      category TEXT NOT NULL,
-      question_key TEXT NOT NULL,
-      question_label TEXT DEFAULT '',
-      answer TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL,
+        answer_id INTEGER,
+        user_name TEXT NOT NULL,
+        user_role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-    CREATE TABLE IF NOT EXISTS checklist_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL,
-      phase TEXT NOT NULL,
-      item TEXT NOT NULL,
-      completed INTEGER DEFAULT 0,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL,
+        phase TEXT NOT NULL,
+        sent INTEGER DEFAULT 0,
+        sent_at DATETIME,
+        webhook_url TEXT,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-    -- v2: Comments
-    CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL,
-      answer_id INTEGER,
-      user_name TEXT NOT NULL,
-      user_role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TABLE IF NOT EXISTS scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL UNIQUE,
+        interview_completion INTEGER DEFAULT 0,
+        timeline_progress INTEGER DEFAULT 0,
+        document_quality INTEGER DEFAULT 0,
+        successor_rating INTEGER DEFAULT 0,
+        total_score INTEGER DEFAULT 0,
+        risk_level TEXT DEFAULT 'low',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-    -- v2: Reminders
-    CREATE TABLE IF NOT EXISTS reminders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL,
-      phase TEXT NOT NULL,
-      sent INTEGER DEFAULT 0,
-      sent_at DATETIME,
-      webhook_url TEXT,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER,
+        user_name TEXT,
+        action TEXT NOT NULL,
+        details TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
 
-    -- v2: Scores
-    CREATE TABLE IF NOT EXISTS scores (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL UNIQUE,
-      interview_completion INTEGER DEFAULT 0,
-      timeline_progress INTEGER DEFAULT 0,
-      document_quality INTEGER DEFAULT 0,
-      successor_rating INTEGER DEFAULT 0,
-      total_score INTEGER DEFAULT 0,
-      risk_level TEXT DEFAULT 'low',
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TABLE IF NOT EXISTS integrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        handover_id INTEGER NOT NULL UNIQUE,
+        feishu_webhook TEXT,
+        dingtalk_webhook TEXT,
+        slack_webhook TEXT,
+        email_to TEXT,
+        confluence_url TEXT,
+        jira_url TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (handover_id) REFERENCES handovers(id)
+      );
 
-    -- v2: Audit log
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER,
-      user_name TEXT,
-      action TEXT NOT NULL,
-      details TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+      CREATE VIRTUAL TABLE IF NOT EXISTS answers_fts USING fts5(
+        category, question_key, question_label, answer,
+        content='answers', content_rowid='id'
+      );
 
-    -- v2: Integration settings
-    CREATE TABLE IF NOT EXISTS integrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      handover_id INTEGER NOT NULL UNIQUE,
-      feishu_webhook TEXT,
-      dingtalk_webhook TEXT,
-      slack_webhook TEXT,
-      email_to TEXT,
-      confluence_url TEXT,
-      jira_url TEXT,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (handover_id) REFERENCES handovers(id)
-    );
+      CREATE TRIGGER IF NOT EXISTS answers_ai AFTER INSERT ON answers BEGIN
+        INSERT INTO answers_fts(rowid, category, question_key, question_label, answer)
+        VALUES (new.id, new.category, new.question_key, new.question_label, new.answer);
+      END;
 
-    -- v2: FTS5 full-text search
-    CREATE VIRTUAL TABLE IF NOT EXISTS answers_fts USING fts5(
-      category, question_key, question_label, answer,
-      content='answers', content_rowid='id'
-    );
+      CREATE TRIGGER IF NOT EXISTS answers_ad AFTER DELETE ON answers BEGIN
+        INSERT INTO answers_fts(answers_fts, rowid, category, question_key, question_label, answer)
+        VALUES ('delete', old.id, old.category, old.question_key, old.question_label, old.answer);
+      END;
 
-    -- Triggers to keep FTS index in sync
-    CREATE TRIGGER IF NOT EXISTS answers_ai AFTER INSERT ON answers BEGIN
-      INSERT INTO answers_fts(rowid, category, question_key, question_label, answer)
-      VALUES (new.id, new.category, new.question_key, new.question_label, new.answer);
-    END;
+      CREATE TRIGGER IF NOT EXISTS answers_au AFTER UPDATE ON answers BEGIN
+        INSERT INTO answers_fts(answers_fts, rowid, category, question_key, question_label, answer)
+        VALUES ('delete', old.id, old.category, old.question_key, old.question_label, old.answer);
+        INSERT INTO answers_fts(rowid, category, question_key, question_label, answer)
+        VALUES (new.id, new.category, new.question_key, new.question_label, new.answer);
+      END;
+    `);
 
-    CREATE TRIGGER IF NOT EXISTS answers_ad AFTER DELETE ON answers BEGIN
-      INSERT INTO answers_fts(answers_fts, rowid, category, question_key, question_label, answer)
-      VALUES ('delete', old.id, old.category, old.question_key, old.question_label, old.answer);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS answers_au AFTER UPDATE ON answers BEGIN
-      INSERT INTO answers_fts(answers_fts, rowid, category, question_key, question_label, answer)
-      VALUES ('delete', old.id, old.category, old.question_key, old.question_label, old.answer);
-      INSERT INTO answers_fts(rowid, category, question_key, question_label, answer)
-      VALUES (new.id, new.category, new.question_key, new.question_label, new.answer);
-    END;
-  `);
-
-  return db;
+    return db;
+  } catch (e: any) {
+    dbError = e;
+    console.warn('[DB] SQLite unavailable:', e.message);
+    return null;
+  }
 }
 
-// Handover CRUD
+export function getDb(): Database.Database {
+  const instance = tryInitDb();
+  if (!instance) throw new Error('DATABASE_UNAVAILABLE');
+  return instance;
+}
+
+// ── Handover CRUD ──
+
 export function createHandover(personName: string, successorName: string, projectName: string, role: string, departureDate?: string) {
   const db = getDb();
   const stmt = db.prepare('INSERT INTO handovers (person_name, successor_name, project_name, role, departure_date) VALUES (?, ?, ?, ?, ?)');
@@ -164,7 +169,8 @@ export function updateHandover(id: number, data: Record<string, any>) {
   db.prepare(`UPDATE handovers SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(...values, id);
 }
 
-// Answers
+// ── Answers ─
+
 export function saveAnswer(handoverId: number, category: string, questionKey: string, questionLabel: string, answer: string) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM answers WHERE handover_id = ? AND category = ? AND question_key = ?').get(handoverId, category, questionKey);
@@ -182,11 +188,11 @@ export function getAnswers(handoverId: number) {
 
 export function getAnswerCount(handoverId: number) {
   const db = getDb();
-  const row = db.prepare('SELECT COUNT(*) as total, COUNT(CASE WHEN answer IS NOT NULL AND answer != "" THEN 1 END) as answered FROM answers WHERE handover_id = ?').get(handoverId) as any;
-  return row;
+  return db.prepare('SELECT COUNT(*) as total, COUNT(CASE WHEN answer IS NOT NULL AND answer != "" THEN 1 END) as answered FROM answers WHERE handover_id = ?').get(handoverId) as any;
 }
 
-// Comments
+// ── Comments ──
+
 export function addComment(handoverId: number, userName: string, userRole: string, content: string, answerId?: number) {
   const db = getDb();
   const result = db.prepare('INSERT INTO comments (handover_id, user_name, user_role, content, answer_id) VALUES (?, ?, ?, ?, ?)').run(handoverId, userName, userRole, content, answerId || null);
@@ -202,35 +208,31 @@ export function getComments(handoverId: number, answerId?: number) {
   return db.prepare('SELECT * FROM comments WHERE handover_id = ? ORDER BY created_at ASC').all(handoverId) as any[];
 }
 
-// Scores
+// ── Scores ──
+
 export function calculateScore(handoverId: number) {
   const db = getDb();
   const handover = getHandover(handoverId);
   if (!handover) return null;
 
-  // Interview completion
   const { total, answered } = getAnswerCount(handoverId);
   const interviewCompletion = total > 0 ? Math.round((answered / total) * 100) : 0;
 
-  // Timeline progress
   const checklistTotal = db.prepare('SELECT COUNT(*) as cnt FROM checklist_items WHERE handover_id = ?').get(handoverId) as any;
   const checklistDone = db.prepare('SELECT COUNT(*) as cnt FROM checklist_items WHERE handover_id = ? AND completed = 1').get(handoverId) as any;
   const timelineProgress = checklistTotal.cnt > 0 ? Math.round((checklistDone.cnt / checklistTotal.cnt) * 100) : 0;
 
-  // Document quality (avg answer length, penalize empty)
   const answers = getAnswers(handoverId);
   let documentQuality = 0;
   if (answers.length > 0) {
     const avgLen = answers.reduce((sum, a) => sum + (a.answer?.length || 0), 0) / answers.length;
-    documentQuality = Math.min(100, Math.round(avgLen / 2)); // 200 chars = 100%
+    documentQuality = Math.min(100, Math.round(avgLen / 2));
   }
 
-  // Total score
   const existingScore = db.prepare('SELECT successor_rating FROM scores WHERE handover_id = ?').get(handoverId) as any;
   const successorRating = existingScore?.successor_rating || 0;
   const totalScore = Math.round(interviewCompletion * 0.4 + timelineProgress * 0.3 + documentQuality * 0.2 + successorRating * 2);
 
-  // Risk level
   let riskLevel = 'low';
   if (totalScore < 40) riskLevel = 'critical';
   else if (totalScore < 60) riskLevel = 'high';
@@ -262,7 +264,8 @@ export function updateSuccessorRating(handoverId: number, rating: number) {
   calculateScore(handoverId);
 }
 
-// Search (FTS5)
+// ── Search (FTS5) ──
+
 export function searchAnswers(handoverId: number, query: string) {
   const db = getDb();
   const sanitized = query.replace(/["*]/g, '');
@@ -276,7 +279,8 @@ export function searchAnswers(handoverId: number, query: string) {
   `).all(handoverId, sanitized) as any[];
 }
 
-// Audit log
+// ── Audit log ──
+
 function logAudit(handoverId: number | null, userName: string | null, action: string, details: string) {
   const db = getDb();
   db.prepare('INSERT INTO audit_log (handover_id, user_name, action, details) VALUES (?, ?, ?, ?)').run(handoverId, userName, action, details);
@@ -287,7 +291,8 @@ export function getAuditLog(handoverId: number) {
   return db.prepare('SELECT * FROM audit_log WHERE handover_id = ? ORDER BY created_at DESC LIMIT 50').all(handoverId) as any[];
 }
 
-// Integrations
+// ── Integrations ──
+
 export function saveIntegration(handoverId: number, data: Record<string, string | null>) {
   const db = getDb();
   const cols = Object.keys(data);
@@ -304,7 +309,8 @@ export function getIntegration(handoverId: number) {
   return db.prepare('SELECT * FROM integrations WHERE handover_id = ?').get(handoverId) as any;
 }
 
-// Reminders
+// ── Reminders ──
+
 export function getPendingReminders() {
   const db = getDb();
   return db.prepare(`
@@ -321,7 +327,8 @@ export function markReminderSent(reminderId: number) {
   db.prepare('UPDATE reminders SET sent = 1, sent_at = CURRENT_TIMESTAMP WHERE id = ?').run(reminderId);
 }
 
-// Webhook sender
+// ── Webhook sender ──
+
 export async function sendWebhook(url: string, payload: any) {
   try {
     await fetch(url, {
