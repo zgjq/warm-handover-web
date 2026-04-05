@@ -2,37 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { DataService } from '@/lib/data-service';
+import { useNotification } from '@/context/NotificationContext';
 
 export default function ListPage() {
   const router = useRouter();
+  const { success, warning } = useNotification();
   const [handovers, setHandovers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    const listStr = localStorage.getItem('handover_list') || '[]';
-    setHandovers(JSON.parse(listStr));
-  }, []);
+  const refresh = () => setHandovers(DataService.list());
+  useEffect(refresh, []);
 
-  const filtered = handovers.filter(h =>
-    !searchQuery ||
-    h.personName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    h.projectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    h.successorName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = DataService.search(searchQuery);
 
-  const handleDelete = (id: number) => {
-    localStorage.removeItem(`handover_${id}`);
-    localStorage.removeItem(`checklist_${id}`);
-    const updated = handovers.filter(h => h.id !== id);
-    setHandovers(updated);
-    localStorage.setItem('handover_list', JSON.stringify(updated));
+  const handleDelete = (id: number, name: string) => {
+    if (!confirm(`确定要删除 "${name}" 的交接记录吗？此操作不可撤销。`)) return;
+    DataService.delete(id);
+    refresh();
+    success(`已删除 ${name} 的交接记录`);
   };
 
   const getStatusInfo = (h: any) => {
-    const total = Object.keys(h.answers || {}).length;
-    const answered = Object.values(h.answers || {}).filter((a: any) => a && a.trim()).length;
-    if (total === 0) return { label: '未开始', color: 'bg-gray-100 text-gray-600', progress: 0 };
-    const pct = Math.round((answered / total) * 100);
+    const stats = DataService.getAnswerStats(h.id);
+    if (stats.total === 0) return { label: '未开始', color: 'bg-gray-100 text-gray-600', progress: 0 };
+    const pct = Math.round((stats.answered / stats.total) * 100);
     if (pct >= 80) return { label: '即将完成', color: 'bg-green-100 text-green-700', progress: pct };
     if (pct >= 50) return { label: '进行中', color: 'bg-orange-100 text-orange-700', progress: pct };
     return { label: '刚开始', color: 'bg-yellow-100 text-yellow-700', progress: pct };
@@ -121,7 +115,7 @@ export default function ListPage() {
                           导出
                         </button>
                         <button
-                          onClick={() => handleDelete(h.id)}
+                          onClick={() => handleDelete(h.id, h.personName)}
                           className="px-3 py-1.5 text-sm text-red-400 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                         >
                           删除

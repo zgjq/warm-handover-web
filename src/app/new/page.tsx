@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { roleTemplates } from '@/lib/questions';
+import { DataService } from '@/lib/data-service';
+import { useNotification } from '@/context/NotificationContext';
 
 const roles = roleTemplates;
 
 export default function NewHandoverPage() {
   const router = useRouter();
+  const { success, error: notifyError } = useNotification();
   const [personName, setPersonName] = useState('');
   const [successorName, setSuccessorName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -17,26 +20,19 @@ export default function NewHandoverPage() {
 
   const handleSubmit = () => {
     if (!personName.trim()) return;
-    const id = Date.now();
-    const data = {
-      id,
-      personName: personName.trim(),
-      successorName: successorName.trim() || '待确定',
-      projectName: projectName.trim() || '项目',
-      departureDate: departureDate || undefined,
-      role,
-      createdAt: new Date().toISOString(),
-      answers: {} as Record<string, string>,
-    };
-    localStorage.setItem(`handover_${id}`, JSON.stringify(data));
-    localStorage.setItem('handover_current', String(id));
-    
-    const listStr = localStorage.getItem('handover_list') || '[]';
-    const list = JSON.parse(listStr);
-    list.unshift({ id, personName: data.personName, projectName: data.projectName, departureDate: data.departureDate, createdAt: data.createdAt, status: 'in_progress' });
-    localStorage.setItem('handover_list', JSON.stringify(list));
-    
-    router.push(`/interview?id=${id}`);
+    try {
+      const id = DataService.create({
+        personName: personName.trim(),
+        successorName: successorName.trim() || '待确定',
+        projectName: projectName.trim() || '项目',
+        departureDate: departureDate || undefined,
+        role,
+      });
+      success('✅ 交接创建成功！');
+      router.push(`/interview?id=${id}`);
+    } catch (e: any) {
+      notifyError(e.message || '创建失败');
+    }
   };
 
   // Calculate days remaining

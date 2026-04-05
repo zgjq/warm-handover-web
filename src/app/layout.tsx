@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NotificationProvider } from "@/context/NotificationContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,20 +15,22 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased">
-        <nav className="border-b border-orange-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2 text-orange-600 font-bold text-lg">
-              🤝 Warm Handover
-            </a>
-            <div className="flex gap-4 text-sm">
-              <a href="/" className="text-gray-600 hover:text-orange-600 transition-colors">首页</a>
-              <a href="/new" className="text-gray-600 hover:text-orange-600 transition-colors">新建交接</a>
-              <a href="/dashboard" className="text-gray-600 hover:text-orange-600 transition-colors">看板</a>
-              <a href="/list" className="text-gray-600 hover:text-orange-600 transition-colors">我的交接</a>
+        <NotificationProvider>
+          <nav className="border-b border-orange-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <a href="/" className="flex items-center gap-2 text-orange-600 font-bold text-lg hover:opacity-80 transition-opacity">
+                🤝 Warm Handover
+              </a>
+              <div className="flex gap-4 text-sm">
+                <a href="/" className="text-gray-600 hover:text-orange-600 transition-colors">首页</a>
+                <a href="/new" className="text-gray-600 hover:text-orange-600 transition-colors">新建交接</a>
+                <a href="/dashboard" className="text-gray-600 hover:text-orange-600 transition-colors">看板</a>
+                <a href="/list" className="text-gray-600 hover:text-orange-600 transition-colors">我的交接</a>
+              </div>
             </div>
-          </div>
-        </nav>
-        {children}
+          </nav>
+          {children}
+        </NotificationProvider>
       </body>
     </html>
   );
